@@ -9,21 +9,54 @@ const Register = ({ setCurrentPage }) => {
   const handleRegister = async (e) => {
     e.preventDefault();
 
+    // Validate input fields
+    if (!username.trim() || !password.trim()) {
+      toast.error("Please enter username and password.", {
+        position: "top-right",
+      });
+      return;
+    }
+
     try {
       const response = await axios.post(
         "https://chat-app-backend-red-sigma.vercel.app/auth/register",
         {
-          username,
+          username: username.trim(),
           password,
         },
       );
 
       console.log("Registration successful:", response.data);
+
+      // Success toast
+      toast.success("Registration successful!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+
+      // Clear input fields
+      setUsername("");
+      setPassword("");
+
+      // Navigate to login page
+      if (setCurrentPage) {
+        setCurrentPage("login");
+      }
     } catch (error) {
       console.error(
         "Registration error:",
         error.response?.data || error.message,
       );
+
+      const errorMessage =
+        error.response?.data?.message ||
+        "Registration failed. Please try again.";
+
+      // Error toast
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: 3000,
+      });
     }
   };
 
