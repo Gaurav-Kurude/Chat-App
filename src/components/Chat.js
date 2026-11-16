@@ -198,9 +198,15 @@ export const Chat = ({ user }) => {
   // =================================
 
   useEffect(() => {
-    if (!user || users.length === 0) return;
+    if (!user?._id || users.length === 0) return;
 
     const joinAllRooms = () => {
+      // 1. Join personal room for unread notifications
+      socket.emit("joinUserRoom", user._id);
+
+      console.log("Joined personal room:", user._id);
+
+      // 2. Join existing conversation rooms
       users.forEach((otherUser) => {
         const roomId = getRoomId(otherUser);
 
@@ -208,6 +214,9 @@ export const Chat = ({ user }) => {
 
         socket.emit("joinRoom", roomId);
       });
+
+      // 3. Request unread message counts
+      socket.emit("get_unread_counts");
     };
 
     socket.on("connect", joinAllRooms);
@@ -219,7 +228,7 @@ export const Chat = ({ user }) => {
     return () => {
       socket.off("connect", joinAllRooms);
     };
-  }, [users, user, getRoomId]);
+  }, [users, user?._id, getRoomId]);
 
   // =================================
   // MESSAGE STATUS UPDATES
