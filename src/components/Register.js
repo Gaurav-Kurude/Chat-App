@@ -10,7 +10,7 @@ const Register = ({ setCurrentPage }) => {
     e.preventDefault();
 
     try {
-      await axios.post(
+      const response = await axios.post(
         "https://chat-app-backend-red-sigma.vercel.app/auth/register",
         {
           username,
@@ -18,16 +18,12 @@ const Register = ({ setCurrentPage }) => {
         },
       );
 
-      toast.success("You are registered successfully. Proceed to login.");
-
-      // Redirect to Login after successful registration
-      setTimeout(() => {
-        setCurrentPage("login");
-      }, 1500);
+      console.log("Registration successful:", response.data);
     } catch (error) {
-      console.error(error);
-
-      toast.error(error.response?.data?.message || "Error registering user");
+      console.error(
+        "Registration error:",
+        error.response?.data || error.message,
+      );
     }
   };
 
