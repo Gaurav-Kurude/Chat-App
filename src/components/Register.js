@@ -10,7 +10,7 @@ const Register = ({ setCurrentPage }) => {
     e.preventDefault();
 
     try {
-      const response = await axios.post("http://localhost:5001/auth/register", {
+      const response = await axios.post("https://chat-app-backend-red-sigma.vercel.app/auth/register", {
         username,
         password,
       });

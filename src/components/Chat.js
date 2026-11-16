@@ -6,12 +6,12 @@ import MessageList from "./MessageList";
 import "./chat.css";
 
 // SOCKET CONNECTION
-const socket = io("http://localhost:5001", {
+const socket = io("https://chat-app-backend-red-sigma.vercel.app", {
   transports: ["websocket", "polling"],
   autoConnect: true,
 });
 
-const API_URL = "http://localhost:5001";
+const API_URL = "https://chat-app-backend-red-sigma.vercel.app";
 
 export const Chat = ({ user }) => {
   const [users, setUsers] = useState([]);
