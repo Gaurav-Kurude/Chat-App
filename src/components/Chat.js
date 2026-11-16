@@ -1,17 +1,45 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 import EmojiPicker from "emoji-picker-react";
 import MessageList from "./MessageList";
 import "./chat.css";
 
+// =================================
 // SOCKET CONNECTION
+// =================================
+
 const socket = io("https://chat-app-backend-red-sigma.vercel.app", {
   transports: ["websocket", "polling"],
   autoConnect: true,
 });
 
 const API_URL = "https://chat-app-backend-red-sigma.vercel.app";
+
+// =================================
+// MESSAGE STATUS ORDER
+// =================================
+
+const statusOrder = {
+  sent: 1,
+  delivered: 2,
+  read: 3,
+};
+
+// =================================
+// GET USER ID
+// MOVED OUTSIDE COMPONENT
+// =================================
+
+const getUserId = (value) => {
+  if (!value) return "";
+
+  if (typeof value === "object") {
+    return String(value._id || value.id || value.userId || "");
+  }
+
+  return String(value);
+};
 
 export const Chat = ({ user }) => {
   const [users, setUsers] = useState([]);
@@ -29,23 +57,9 @@ export const Chat = ({ user }) => {
   const fetchRequestRef = useRef(0);
   const messageInputRef = useRef(null);
 
-  // Keep latest selected conversation available to socket listeners
+  // KEEP LATEST SELECTED CONVERSATION
   const currentChatRef = useRef(currentChat);
   currentChatRef.current = currentChat;
-
-  // =================================
-  // GET USER ID
-  // =================================
-
-  const getUserId = (value) => {
-    if (!value) return "";
-
-    if (typeof value === "object") {
-      return String(value._id || value.id || value.userId || "");
-    }
-
-    return String(value);
-  };
 
   // =================================
   // GET INITIALS
@@ -64,9 +78,10 @@ export const Chat = ({ user }) => {
   // GENERATE ROOM ID
   // =================================
 
-  const getRoomId = (receiver) => {
-    return [getUserId(user), getUserId(receiver)].sort().join("_");
-  };
+  const getRoomId = useCallback(
+    (receiver) => [getUserId(user), getUserId(receiver)].sort().join("_"),
+    [user],
+  );
 
   // =================================
   // FORMAT TIME
@@ -90,16 +105,6 @@ export const Chat = ({ user }) => {
     return [...items].sort(
       (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
     );
-  };
-
-  // =================================
-  // MESSAGE STATUS ORDER
-  // =================================
-
-  const statusOrder = {
-    sent: 1,
-    delivered: 2,
-    read: 3,
   };
 
   // =================================
@@ -204,7 +209,7 @@ export const Chat = ({ user }) => {
     return () => {
       socket.off("connect", joinAllRooms);
     };
-  }, [users, user]);
+  }, [users, user, getRoomId]);
 
   // =================================
   // MESSAGE STATUS UPDATES
@@ -277,7 +282,7 @@ export const Chat = ({ user }) => {
       const isReceivedMessage =
         receiverId === currentUserId && senderId !== currentUserId;
 
-      // Mark as delivered even on welcome screen
+      // MARK AS DELIVERED EVEN ON WELCOME SCREEN
       if (isReceivedMessage && data._id) {
         markAsDelivered(data._id);
       }
@@ -292,7 +297,7 @@ export const Chat = ({ user }) => {
         return;
       }
 
-      // Avoid duplicate messages
+      // AVOID DUPLICATE MESSAGES
       setMessages((previousMessages) => {
         const exists = previousMessages.some(
           (msg) => msg._id && data._id && String(msg._id) === String(data._id),
@@ -489,7 +494,6 @@ export const Chat = ({ user }) => {
 
     setCurrentMessage(updatedMessage);
 
-    // Trigger the existing typing indicator
     if (currentChat) {
       const roomId = getRoomId(currentChat);
 
@@ -507,7 +511,6 @@ export const Chat = ({ user }) => {
 
     setShowEmojiPicker(false);
 
-    // Return focus to message input
     messageInputRef.current?.focus();
   };
 

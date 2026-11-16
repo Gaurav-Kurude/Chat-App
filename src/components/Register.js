@@ -10,10 +10,13 @@ const Register = ({ setCurrentPage }) => {
     e.preventDefault();
 
     try {
-      const response = await axios.post("https://chat-app-backend-red-sigma.vercel.app/auth/register", {
-        username,
-        password,
-      });
+      await axios.post(
+        "https://chat-app-backend-red-sigma.vercel.app/auth/register",
+        {
+          username,
+          password,
+        },
+      );
 
       toast.success("You are registered successfully. Proceed to login.");
 
