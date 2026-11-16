@@ -161,9 +161,16 @@ export const Chat = ({ user }) => {
 
     const fetchUsers = async () => {
       try {
+        const currentUserId = getUserId(user);
+
+        if (!currentUserId) {
+          console.error("Current user ID is missing:", user);
+          return;
+        }
+
         const { data } = await axios.get(`${API_URL}/users`, {
           params: {
-            currentUser: user.username,
+            currentUserId,
           },
         });
 
@@ -171,7 +178,10 @@ export const Chat = ({ user }) => {
           ? data
           : data.users || data.data || [];
 
-        setUsers(userList.filter((u) => getUserId(u) !== getUserId(user)));
+        console.log("Current logged-in user:", user);
+        console.log("Users received from backend:", userList);
+
+        setUsers(userList.filter((u) => getUserId(u) !== currentUserId));
       } catch (error) {
         console.error(
           "Error fetching users:",
