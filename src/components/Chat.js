@@ -324,7 +324,6 @@ export const Chat = ({ user }) => {
         isFetching = false;
       }
     };
-
     fetchUsers();
 
     // Automatically discover newly registered users
