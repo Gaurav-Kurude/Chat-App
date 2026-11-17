@@ -282,8 +282,13 @@ export const Chat = ({ user }) => {
     if (!currentUserId) return;
 
     let isActive = true;
+    let isFetching = false;
 
     const fetchUsers = async () => {
+      if (isFetching) return;
+
+      isFetching = true;
+
       try {
         const { data } = await axios.get(`${API_URL}/users`, {
           params: { currentUserId },
@@ -291,21 +296,20 @@ export const Chat = ({ user }) => {
 
         const userList = Array.isArray(data)
           ? data
-          : Array.isArray(data?.users)
-            ? data.users
-            : Array.isArray(data?.data)
-              ? data.data
-              : [];
+          : data?.users || data?.data || [];
+
+        if (!Array.isArray(userList)) return;
 
         const validUsers = userList.filter((u) => {
-          if (!u || typeof u !== "object") return false;
-
           const userId = getUserId(u);
 
-          const username =
-            typeof u.username === "string" ? u.username.trim() : "";
-
-          return userId && username.length > 0 && userId !== currentUserId;
+          return (
+            u &&
+            userId &&
+            userId !== currentUserId &&
+            typeof u.username === "string" &&
+            u.username.trim().length > 0
+          );
         });
 
         if (isActive) {
@@ -313,20 +317,22 @@ export const Chat = ({ user }) => {
         }
       } catch (error) {
         console.error(
-          "Error fetching users:",
+          "Fetch users error:",
           error.response?.data || error.message,
         );
-
-        if (isActive) {
-          setUsers([]);
-        }
+      } finally {
+        isFetching = false;
       }
     };
 
     fetchUsers();
 
+    // Automatically discover newly registered users
+    const intervalId = setInterval(fetchUsers, 5000);
+
     return () => {
       isActive = false;
+      clearInterval(intervalId);
     };
   }, [currentUserId]);
 
