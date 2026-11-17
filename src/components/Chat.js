@@ -9,7 +9,9 @@ import "./chat.css";
 // SOCKET CONNECTION
 // =================================
 
-const socket = io("https://chat-app-backend-red-sigma.vercel.app", {
+const API_URL = "https://chat-app-backend-red-sigma.vercel.app";
+
+const socket = io(API_URL, {
   transports: ["websocket", "polling"],
   autoConnect: false,
 });
@@ -25,8 +27,6 @@ socket.on("connect_error", (error) => {
 socket.on("disconnect", (reason) => {
   console.log("Socket disconnected:", reason);
 });
-
-const API_URL = "https://chat-app-backend-red-sigma.vercel.app";
 
 // =================================
 // MESSAGE STATUS ORDER
@@ -52,6 +52,47 @@ const getUserId = (value) => {
   return String(value);
 };
 
+// =================================
+// HELPERS
+// =================================
+
+const getInitials = (username = "") => {
+  return username
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+};
+
+const formatTime = (date) => {
+  if (!date) return "";
+
+  return new Date(date).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const sortMessages = (items) => {
+  return [...items].sort(
+    (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+  );
+};
+
+const markAsDelivered = (messageId) => {
+  if (!messageId || !socket.connected) return;
+
+  socket.emit("message_delivered", { messageId });
+};
+
+const markAsRead = (messageId) => {
+  if (!messageId || !socket.connected) return;
+
+  socket.emit("message_read", { messageId });
+};
+
 export const Chat = ({ user }) => {
   const [users, setUsers] = useState([]);
   const [currentChat, setCurrentChat] = useState(null);
@@ -60,11 +101,7 @@ export const Chat = ({ user }) => {
   const [typingUser, setTypingUser] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loadingMessages, setLoadingMessages] = useState(false);
-
-  // FIX: SOCKET CONNECTION STATE (so the UI re-renders when it changes)
   const [isConnected, setIsConnected] = useState(socket.connected);
-
-  // EMOJI PICKER STATE
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const typingTimeoutRef = useRef(null);
@@ -76,19 +113,6 @@ export const Chat = ({ user }) => {
   currentChatRef.current = currentChat;
 
   // =================================
-  // GET INITIALS
-  // =================================
-
-  const getInitials = (username = "") => {
-    return username
-      .split(" ")
-      .map((word) => word[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase();
-  };
-
-  // =================================
   // GENERATE ROOM ID
   // =================================
 
@@ -98,62 +122,7 @@ export const Chat = ({ user }) => {
   );
 
   // =================================
-  // FORMAT TIME
-  // =================================
-
-  const formatTime = (date) => {
-    if (!date) return "";
-
-    return new Date(date).toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  // =================================
-  // SORT MESSAGES
-  // =================================
-
-  const sortMessages = (items) => {
-    return [...items].sort(
-      (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
-    );
-  };
-
-  // =================================
-  // MARK AS DELIVERED
-  // =================================
-
-  const markAsDelivered = (messageId) => {
-    if (!messageId || !socket.connected) {
-      console.log("Cannot mark delivered:", {
-        messageId,
-        connected: socket.connected,
-      });
-      return;
-    }
-
-    console.log("Sending delivery receipt:", messageId);
-
-    socket.emit("message_delivered", { messageId });
-  };
-
-  // =================================
-  // MARK AS READ
-  // =================================
-
-  const markAsRead = (messageId) => {
-    if (!messageId || !socket.connected) return;
-
-    console.log("Marking message as read:", messageId);
-
-    socket.emit("message_read", { messageId });
-  };
-
-  // =================================
-  // SOCKET CONNECTION (FIXED)
-  // Tracks connection in React state so the send button updates
+  // SOCKET CONNECTION
   // =================================
 
   useEffect(() => {
@@ -163,13 +132,12 @@ export const Chat = ({ user }) => {
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
 
-    // Get the token you saved at login
     const token = localStorage.getItem("token");
 
     if (!token) {
       console.error("No auth token found. Please log in again.");
     } else {
-      socket.auth = { token }; // sent in the handshake
+      socket.auth = { token };
 
       if (!socket.connected) {
         socket.connect();
@@ -203,17 +171,12 @@ export const Chat = ({ user }) => {
         }
 
         const { data } = await axios.get(`${API_URL}/users`, {
-          params: {
-            currentUserId,
-          },
+          params: { currentUserId },
         });
 
         const userList = Array.isArray(data)
           ? data
           : data.users || data.data || [];
-
-        console.log("Current logged-in user:", user);
-        console.log("Users received from backend:", userList);
 
         setUsers(userList.filter((u) => getUserId(u) !== currentUserId));
       } catch (error) {
@@ -235,22 +198,9 @@ export const Chat = ({ user }) => {
     if (!user?._id || users.length === 0) return;
 
     const joinAllRooms = () => {
-      // 1. Join personal room for unread notifications
-      socket.emit("joinUserRoom", user._id);
-
-      console.log("Joined personal room:", user._id);
-
-      // 2. Join existing conversation rooms
       users.forEach((otherUser) => {
-        const roomId = getRoomId(otherUser);
-
-        console.log("Joining conversation room:", roomId);
-
-        socket.emit("joinRoom", roomId);
+        socket.emit("joinRoom", getRoomId(otherUser));
       });
-
-      // 3. Request unread message counts
-      socket.emit("get_unread_counts");
     };
 
     socket.on("connect", joinAllRooms);
@@ -270,8 +220,6 @@ export const Chat = ({ user }) => {
 
   useEffect(() => {
     const handleMessageStatusUpdate = (updatedMessage) => {
-      console.log("MESSAGE STATUS RECEIVED:", updatedMessage);
-
       const messageId = updatedMessage._id || updatedMessage.messageId;
 
       if (!messageId) return;
@@ -289,12 +237,6 @@ export const Chat = ({ user }) => {
             (statusOrder[newStatus] || 0) >= (statusOrder[oldStatus] || 0)
               ? newStatus
               : oldStatus;
-
-          console.log("Updating message:", {
-            id: messageId,
-            oldStatus,
-            newStatus: finalStatus,
-          });
 
           return {
             ...message,
@@ -330,8 +272,6 @@ export const Chat = ({ user }) => {
       const activeChat = currentChatRef.current;
       const activeChatId = getUserId(activeChat);
 
-      console.log("NEW MESSAGE RECEIVED:", data);
-
       const isReceivedMessage =
         receiverId === currentUserId && senderId !== currentUserId;
 
@@ -345,10 +285,7 @@ export const Chat = ({ user }) => {
         ((senderId === currentUserId && receiverId === activeChatId) ||
           (senderId === activeChatId && receiverId === currentUserId));
 
-      if (!isCurrentConversation) {
-        console.log("Message received while another screen is active.");
-        return;
-      }
+      if (!isCurrentConversation) return;
 
       // AVOID DUPLICATE MESSAGES
       setMessages((previousMessages) => {
@@ -446,14 +383,10 @@ export const Chat = ({ user }) => {
 
       setMessages(sortedMessages);
 
-      console.log("Previous messages loaded:", sortedMessages);
-
       sortedMessages.forEach((msg) => {
-        const messageSenderId = getUserId(msg.sender);
-        const messageReceiverId = getUserId(msg.receiver);
-
         const isReceivedMessage =
-          messageSenderId === receiverId && messageReceiverId === senderId;
+          getUserId(msg.sender) === receiverId &&
+          getUserId(msg.receiver) === senderId;
 
         if (isReceivedMessage && msg.status === "sent") {
           markAsDelivered(msg._id);
@@ -488,11 +421,9 @@ export const Chat = ({ user }) => {
       }
 
       messages.forEach((msg) => {
-        const senderId = getUserId(msg.sender);
-        const receiverId = getUserId(msg.receiver);
-
         const isReceivedMessage =
-          senderId === getUserId(currentChat) && receiverId === getUserId(user);
+          getUserId(msg.sender) === getUserId(currentChat) &&
+          getUserId(msg.receiver) === getUserId(user);
 
         if (isReceivedMessage && msg.status === "delivered") {
           markAsRead(msg._id);
@@ -543,9 +474,7 @@ export const Chat = ({ user }) => {
   // =================================
 
   const handleEmojiClick = (emojiData) => {
-    const updatedMessage = currentMessage + emojiData.emoji;
-
-    setCurrentMessage(updatedMessage);
+    setCurrentMessage(currentMessage + emojiData.emoji);
 
     if (currentChat) {
       const roomId = getRoomId(currentChat);
@@ -568,11 +497,10 @@ export const Chat = ({ user }) => {
   };
 
   // =================================
-  // SEND MESSAGE - FIXED
+  // SEND MESSAGE
   // =================================
 
   const sendMessage = (e) => {
-    // Allow calling with or without an event
     e?.preventDefault();
 
     const trimmedMessage = currentMessage.trim();
@@ -589,7 +517,6 @@ export const Chat = ({ user }) => {
       return;
     }
 
-    // GET SENDER AND RECEIVER IDs
     const senderId = getUserId(user);
     const receiverId = getUserId(currentChat);
 
@@ -607,14 +534,9 @@ export const Chat = ({ user }) => {
       message: trimmedMessage,
     };
 
-    console.log("Sending message:", messageData);
-
     socket.emit("send_message", messageData, (response) => {
-      console.log("Server response:", response);
-
       if (response?.success) {
-        // FIX: show the sent message even if the server doesn't
-        // echo it back through "receive_message" to the sender
+        // Show the sent message even if the server doesn't echo it back
         if (response.message && response.message._id) {
           setMessages((previousMessages) => {
             const exists = previousMessages.some(
@@ -805,8 +727,6 @@ export const Chat = ({ user }) => {
             {/* MESSAGE INPUT */}
 
             <div className="message-field">
-              {/* EMOJI BUTTON */}
-
               <button
                 type="button"
                 className="emoji-toggle-btn"
@@ -815,8 +735,6 @@ export const Chat = ({ user }) => {
               >
                 😊
               </button>
-
-              {/* EMOJI PICKER POPUP */}
 
               {showEmojiPicker && (
                 <div className="emoji-picker-popup">
@@ -831,8 +749,6 @@ export const Chat = ({ user }) => {
                 </div>
               )}
 
-              {/* MESSAGE INPUT */}
-
               <input
                 ref={messageInputRef}
                 type="text"
@@ -846,8 +762,6 @@ export const Chat = ({ user }) => {
                   }
                 }}
               />
-
-              {/* SEND BUTTON (FIXED: uses isConnected state) */}
 
               <button
                 type="button"
