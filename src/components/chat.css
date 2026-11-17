@@ -55,7 +55,9 @@
   color: #d8f8d0;
 }
 
-/* AVATARS */
+/* =================================
+   AVATARS
+================================= */
 
 .avatar {
   width: 45px;
@@ -75,7 +77,9 @@
   background: #d9fdd3;
 }
 
-/* SIDEBAR TITLE */
+/* =================================
+   SIDEBAR TITLE
+================================= */
 
 .sidebar-title {
   padding: 15px 18px 5px;
@@ -88,7 +92,9 @@
   color: #075e54;
 }
 
-/* SEARCH */
+/* =================================
+   SEARCH
+================================= */
 
 .search-container {
   display: flex;
@@ -116,7 +122,9 @@
   background: transparent;
 }
 
-/* USERS LIST */
+/* =================================
+   USERS LIST
+================================= */
 
 .users-list {
   flex: 1;
@@ -143,25 +151,68 @@
   background: #e9edef;
 }
 
+/* USER INFORMATION */
+
 .user-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
 }
 
 .user-info h4 {
-  margin: 0 0 5px;
+  margin: 0;
   font-size: 15px;
   color: #111b21;
-}
-
-.user-info p {
-  margin: 0;
-  font-size: 12px;
-  color: #667781;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* =================================
+   ONLINE / OFFLINE STATUS
+================================= */
+
+.user-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.user-status.status-online {
+  color: #16a34a;
+}
+
+.user-status.status-offline {
+  color: #8696a0;
+}
+
+/* STATUS DOT */
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background: #22c55e;
+  box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
+}
+
+.status-dot.offline {
+  background: #9ca3af;
+}
+
+/* NO USERS */
 
 .no-users {
   padding: 20px;
@@ -214,7 +265,16 @@
 .chat-user-info p {
   margin: 0;
   font-size: 12px;
-  color: #667781;
+}
+
+/* HEADER ONLINE STATUS */
+
+.chat-user-info p.status-online {
+  color: #25d366;
+}
+
+.chat-user-info p.status-offline {
+  color: #8696a0;
 }
 
 .chat-header-actions {
@@ -325,7 +385,7 @@
 }
 
 /* =================================
-   MESSAGE DELIVERY AND READ RECEIPTS
+   DELIVERY AND READ RECEIPTS
 ================================= */
 
 .message-status {
@@ -343,31 +403,27 @@
   user-select: none;
 }
 
-/* ONE GREY TICK - SENT */
+/* ONE GREY TICK */
 
 .message-status.sent {
   color: #8696a0;
 }
 
-/* TWO GREY TICKS - DELIVERED */
+/* TWO GREY TICKS */
 
 .message-status.delivered {
   color: #8696a0;
 }
 
-/* TWO BLUE TICKS - READ */
+/* TWO BLUE TICKS */
 
 .message-status.read {
   color: #34b7f1;
 }
 
-/* If MessageList uses two separate spans */
-
 .message-status span + span {
   margin-left: -3px;
 }
-
-/* Legacy tick class */
 
 .message-tick {
   font-size: 12px;
@@ -513,8 +569,6 @@
   background: #e2e6e9 !important;
 }
 
-/* EMOJI PICKER POPUP */
-
 .emoji-picker-popup {
   position: absolute;
   bottom: calc(100% + 10px);
@@ -624,11 +678,15 @@
     text-align: center;
   }
 
+  .user-info {
+    align-items: center;
+  }
+
   .user-info h4 {
     font-size: 12px;
   }
 
-  .user-info p {
+  .user-status {
     font-size: 10px;
   }
 

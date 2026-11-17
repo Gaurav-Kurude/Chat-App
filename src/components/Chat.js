@@ -6,7 +6,7 @@ import MessageList from "./MessageList";
 import "./chat.css";
 
 // =================================
-// SOCKET CONNECTION
+// API AND SOCKET CONNECTION
 // =================================
 
 const API_URL = "https://chat-app-backend-red-sigma.vercel.app";
@@ -57,8 +57,13 @@ const getUserId = (value) => {
 // =================================
 
 const getInitials = (username = "") => {
+  if (typeof username !== "string" || !username.trim()) {
+    return "?";
+  }
+
   return username
-    .split(" ")
+    .trim()
+    .split(/\s+/)
     .map((word) => word[0])
     .join("")
     .substring(0, 2)
@@ -93,6 +98,10 @@ const markAsRead = (messageId) => {
   socket.emit("message_read", { messageId });
 };
 
+// =================================
+// CHAT COMPONENT
+// =================================
+
 export const Chat = ({ user }) => {
   const [users, setUsers] = useState([]);
   const [currentChat, setCurrentChat] = useState(null);
@@ -104,13 +113,17 @@ export const Chat = ({ user }) => {
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // ONLINE USERS
+  const [onlineUsers, setOnlineUsers] = useState([]);
+
   const typingTimeoutRef = useRef(null);
   const fetchRequestRef = useRef(0);
   const messageInputRef = useRef(null);
-
-  // KEEP LATEST SELECTED CONVERSATION
   const currentChatRef = useRef(currentChat);
+
   currentChatRef.current = currentChat;
+
+  const currentUserId = getUserId(user);
 
   // =================================
   // GENERATE ROOM ID
@@ -126,8 +139,13 @@ export const Chat = ({ user }) => {
   // =================================
 
   useEffect(() => {
-    const onConnect = () => setIsConnected(true);
-    const onDisconnect = () => setIsConnected(false);
+    const onConnect = () => {
+      setIsConnected(true);
+    };
+
+    const onDisconnect = () => {
+      setIsConnected(false);
+    };
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
@@ -149,53 +167,175 @@ export const Chat = ({ user }) => {
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
+
       clearTimeout(typingTimeoutRef.current);
+
       socket.disconnect();
     };
   }, []);
+
+  // =================================
+  // ONLINE / OFFLINE PRESENCE
+  // =================================
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      console.error("Presence: JWT token not found");
+      return;
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+    };
+
+    let isActive = true;
+    let isRefreshing = false;
+
+    const refreshPresence = async () => {
+      if (!isActive || isRefreshing) return;
+
+      isRefreshing = true;
+
+      try {
+        // STEP 1: Update current user's lastSeen
+        const heartbeatResponse = await axios.post(
+          `${API_URL}/presence/heartbeat`,
+          {},
+          { headers },
+        );
+
+        console.log("Heartbeat successful:", heartbeatResponse.data);
+
+        if (!isActive) return;
+
+        // STEP 2: Get all online users
+        const presenceResponse = await axios.get(`${API_URL}/presence`, {
+          headers,
+        });
+
+        if (!isActive) return;
+
+        const receivedIds = presenceResponse.data?.onlineUserIds;
+
+        if (!Array.isArray(receivedIds)) {
+          console.error("Invalid presence response:", presenceResponse.data);
+          return;
+        }
+
+        // STEP 3: Normalize MongoDB IDs
+        const onlineIds = receivedIds
+          .map((id) => getUserId(id))
+          .filter(Boolean);
+
+        setOnlineUsers(onlineIds);
+
+        console.log("Current online user IDs:", onlineIds);
+        console.log("Current user ID:", currentUserId);
+      } catch (error) {
+        console.error(
+          "Presence error:",
+          error.response?.status,
+          error.response?.data || error.message,
+        );
+      } finally {
+        isRefreshing = false;
+      }
+    };
+
+    // Run immediately
+    refreshPresence();
+
+    // Refresh every 10 seconds
+    const intervalId = setInterval(refreshPresence, 10000);
+
+    // Refresh when browser tab becomes active
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshPresence();
+      }
+    };
+
+    window.addEventListener("focus", refreshPresence);
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isActive = false;
+
+      clearInterval(intervalId);
+
+      window.removeEventListener("focus", refreshPresence);
+
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [currentUserId]);
 
   // =================================
   // FETCH USERS
   // =================================
 
   useEffect(() => {
-    if (!user) return;
+    if (!currentUserId) return;
+
+    let isActive = true;
 
     const fetchUsers = async () => {
       try {
-        const currentUserId = getUserId(user);
-
-        if (!currentUserId) {
-          console.error("Current user ID is missing:", user);
-          return;
-        }
-
         const { data } = await axios.get(`${API_URL}/users`, {
           params: { currentUserId },
         });
 
         const userList = Array.isArray(data)
           ? data
-          : data.users || data.data || [];
+          : Array.isArray(data?.users)
+            ? data.users
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
 
-        setUsers(userList.filter((u) => getUserId(u) !== currentUserId));
+        const validUsers = userList.filter((u) => {
+          if (!u || typeof u !== "object") return false;
+
+          const userId = getUserId(u);
+
+          const username =
+            typeof u.username === "string" ? u.username.trim() : "";
+
+          return userId && username.length > 0 && userId !== currentUserId;
+        });
+
+        if (isActive) {
+          setUsers(validUsers);
+        }
       } catch (error) {
         console.error(
           "Error fetching users:",
           error.response?.data || error.message,
         );
+
+        if (isActive) {
+          setUsers([]);
+        }
       }
     };
 
     fetchUsers();
-  }, [user]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentUserId]);
 
   // =================================
   // JOIN ALL CONVERSATION ROOMS
   // =================================
 
   useEffect(() => {
-    if (!user?._id || users.length === 0) return;
+    if (!user || users.length === 0) return;
 
     const joinAllRooms = () => {
       users.forEach((otherUser) => {
@@ -212,7 +352,7 @@ export const Chat = ({ user }) => {
     return () => {
       socket.off("connect", joinAllRooms);
     };
-  }, [users, user?._id, getRoomId]);
+  }, [users, user, getRoomId]);
 
   // =================================
   // MESSAGE STATUS UPDATES
@@ -258,7 +398,6 @@ export const Chat = ({ user }) => {
 
   // =================================
   // RECEIVE MESSAGES
-  // WORKS EVEN ON WELCOME SCREEN
   // =================================
 
   useEffect(() => {
@@ -267,7 +406,6 @@ export const Chat = ({ user }) => {
     const handleReceiveMessage = (data) => {
       const senderId = getUserId(data.sender);
       const receiverId = getUserId(data.receiver);
-      const currentUserId = getUserId(user);
 
       const activeChat = currentChatRef.current;
       const activeChatId = getUserId(activeChat);
@@ -275,7 +413,6 @@ export const Chat = ({ user }) => {
       const isReceivedMessage =
         receiverId === currentUserId && senderId !== currentUserId;
 
-      // MARK AS DELIVERED EVEN ON WELCOME SCREEN
       if (isReceivedMessage && data._id) {
         markAsDelivered(data._id);
       }
@@ -287,7 +424,6 @@ export const Chat = ({ user }) => {
 
       if (!isCurrentConversation) return;
 
-      // AVOID DUPLICATE MESSAGES
       setMessages((previousMessages) => {
         const exists = previousMessages.some(
           (msg) => msg._id && data._id && String(msg._id) === String(data._id),
@@ -304,7 +440,7 @@ export const Chat = ({ user }) => {
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
-  }, [user]);
+  }, [user, currentUserId]);
 
   // =================================
   // TYPING EVENTS
@@ -336,7 +472,7 @@ export const Chat = ({ user }) => {
 
   const fetchMessages = async (receiver) => {
     const receiverId = getUserId(receiver);
-    const senderId = getUserId(user);
+    const senderId = currentUserId;
 
     if (!senderId || !receiverId) {
       console.error("Sender or receiver ID is missing");
@@ -423,7 +559,7 @@ export const Chat = ({ user }) => {
       messages.forEach((msg) => {
         const isReceivedMessage =
           getUserId(msg.sender) === getUserId(currentChat) &&
-          getUserId(msg.receiver) === getUserId(user);
+          getUserId(msg.receiver) === currentUserId;
 
         if (isReceivedMessage && msg.status === "delivered") {
           markAsRead(msg._id);
@@ -438,7 +574,7 @@ export const Chat = ({ user }) => {
     return () => {
       document.removeEventListener("visibilitychange", markConversationAsRead);
     };
-  }, [messages, currentChat, user]);
+  }, [messages, currentChat, user, currentUserId]);
 
   // =================================
   // HANDLE TYPING
@@ -474,7 +610,7 @@ export const Chat = ({ user }) => {
   // =================================
 
   const handleEmojiClick = (emojiData) => {
-    setCurrentMessage(currentMessage + emojiData.emoji);
+    setCurrentMessage((previous) => previous + emojiData.emoji);
 
     if (currentChat) {
       const roomId = getRoomId(currentChat);
@@ -492,7 +628,6 @@ export const Chat = ({ user }) => {
     }
 
     setShowEmojiPicker(false);
-
     messageInputRef.current?.focus();
   };
 
@@ -517,14 +652,11 @@ export const Chat = ({ user }) => {
       return;
     }
 
-    const senderId = getUserId(user);
+    const senderId = currentUserId;
     const receiverId = getUserId(currentChat);
 
     if (!senderId || !receiverId) {
-      console.error("Sender or receiver ID is missing:", {
-        senderId,
-        receiverId,
-      });
+      console.error("Sender or receiver ID is missing");
       return;
     }
 
@@ -536,7 +668,6 @@ export const Chat = ({ user }) => {
 
     socket.emit("send_message", messageData, (response) => {
       if (response?.success) {
-        // Show the sent message even if the server doesn't echo it back
         if (response.message && response.message._id) {
           setMessages((previousMessages) => {
             const exists = previousMessages.some(
@@ -590,9 +721,22 @@ export const Chat = ({ user }) => {
   // SEARCH USERS
   // =================================
 
-  const filteredUsers = users.filter((u) =>
-    u?.username?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredUsers = users.filter((u) => {
+    const username = typeof u?.username === "string" ? u.username.trim() : "";
+
+    return username.toLowerCase().includes(searchTerm.trim().toLowerCase());
+  });
+
+  // =================================
+  // ONLINE STATUS CHECK
+  // =================================
+
+  const isUserOnline = (userId) => {
+    return onlineUsers.includes(String(userId));
+  };
+
+  const isCurrentChatOnline =
+    !!currentChat && isUserOnline(getUserId(currentChat));
 
   // =================================
   // UI
@@ -632,31 +776,45 @@ export const Chat = ({ user }) => {
           />
         </div>
 
+        {/* USERS LIST */}
+
         <div className="users-list">
           {filteredUsers.length > 0 ? (
-            filteredUsers.map((u) => (
-              <div
-                key={getUserId(u)}
-                className={`chat-user ${
-                  getUserId(currentChat) === getUserId(u) ? "active" : ""
-                }`}
-                onClick={() => fetchMessages(u)}
-              >
-                <div className="avatar user-avatar">
-                  {getInitials(u.username)}
-                </div>
+            filteredUsers.map((u) => {
+              const userId = getUserId(u);
+              const isOnline = isUserOnline(userId);
+              const isSelected = getUserId(currentChat) === userId;
 
-                <div className="user-info">
-                  <h4>{u.username}</h4>
+              return (
+                <div
+                  key={userId}
+                  className={`chat-user ${isSelected ? "active" : ""}`}
+                  onClick={() => fetchMessages(u)}
+                >
+                  <div className="avatar user-avatar">
+                    {getInitials(u.username)}
+                  </div>
 
-                  <p>
-                    {getUserId(currentChat) === getUserId(u)
-                      ? "Conversation selected"
-                      : "Start a conversation"}
-                  </p>
+                  <div className="user-info">
+                    <h4>{u.username.trim()}</h4>
+
+                    <div
+                      className={`user-status ${
+                        isOnline ? "status-online" : "status-offline"
+                      }`}
+                    >
+                      <span
+                        className={`status-dot ${
+                          isOnline ? "online" : "offline"
+                        }`}
+                      ></span>
+
+                      <span>{isOnline ? "Online" : "Offline"}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <p className="no-users">No users found</p>
           )}
@@ -678,10 +836,16 @@ export const Chat = ({ user }) => {
               <div className="chat-user-info">
                 <h4>{currentChat.username}</h4>
 
-                <p>
+                <p
+                  className={
+                    isCurrentChatOnline ? "status-online" : "status-offline"
+                  }
+                >
                   {typingUser === currentChat.username
                     ? "typing..."
-                    : "Chat conversation"}
+                    : isCurrentChatOnline
+                      ? "online"
+                      : "offline"}
                 </p>
               </div>
 
@@ -774,8 +938,6 @@ export const Chat = ({ user }) => {
             </div>
           </>
         ) : (
-          /* WELCOME SCREEN */
-
           <div className="welcome-screen">
             <div className="welcome-icon">💬</div>
 
