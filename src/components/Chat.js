@@ -163,11 +163,19 @@ export const Chat = ({ user }) => {
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
 
-    if (!socket.connected) {
-      socket.connect();
+    // Get the token you saved at login
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      console.error("No auth token found. Please log in again.");
+    } else {
+      socket.auth = { token }; // sent in the handshake
+
+      if (!socket.connected) {
+        socket.connect();
+      }
     }
 
-    // Sync in case the socket connected before listeners were attached
     setIsConnected(socket.connected);
 
     return () => {
