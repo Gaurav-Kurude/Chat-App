@@ -788,3 +788,19 @@
     max-width: calc(100vw - 110px);
   }
 }
+
+.logout-btn {
+  background: #e53935;
+  color: white;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: #c62828;
+}

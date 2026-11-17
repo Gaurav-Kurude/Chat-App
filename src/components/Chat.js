@@ -102,7 +102,7 @@ const markAsRead = (messageId) => {
 // CHAT COMPONENT
 // =================================
 
-export const Chat = ({ user }) => {
+export const Chat = ({ user, onLogout }) => {
   const [users, setUsers] = useState([]);
   const [currentChat, setCurrentChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -893,6 +893,10 @@ export const Chat = ({ user }) => {
                       : "offline"}
                 </p>
               </div>
+
+              <button className="logout-btn" onClick={onLogout}>
+                Logout
+              </button>
 
               <div className="chat-header-actions">
                 <span title="Search">⌕</span>

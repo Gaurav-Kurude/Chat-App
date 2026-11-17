@@ -6,12 +6,21 @@ import { Chat } from "./components/Chat";
 import "bootstrap/dist/js/bootstrap.min.js";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-import { ToastContainer } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const App = () => {
   const [user, setUser] = useState(null);
   const [currentPage, setCurrentPage] = useState("register");
+
+  // Logout function
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    setCurrentPage("login");
+
+    toast.success("Logged out successfully!");
+  };
 
   return (
     <div className="app">
@@ -52,7 +61,7 @@ const App = () => {
           </div>
         </div>
       ) : (
-        <Chat user={user} />
+        <Chat user={user} onLogout={handleLogout} />
       )}
 
       {/* Global Toast Notifications */}
