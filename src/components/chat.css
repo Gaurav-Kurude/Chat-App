@@ -403,31 +403,22 @@
   user-select: none;
 }
 
-/* ONE GREY TICK */
+/* ONE GREY TICK - SENT */
 
 .message-status.sent {
   color: #8696a0;
 }
 
-/* TWO GREY TICKS */
+/* TWO GREY TICKS - DELIVERED */
 
 .message-status.delivered {
   color: #8696a0;
 }
 
-/* TWO BLUE TICKS */
+/* TWO BLUE TICKS - READ */
 
 .message-status.read {
   color: #34b7f1;
-}
-
-.message-status span + span {
-  margin-left: -3px;
-}
-
-.message-tick {
-  font-size: 12px;
-  color: #8696a0;
 }
 
 /* =================================

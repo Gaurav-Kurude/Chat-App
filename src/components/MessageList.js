@@ -33,15 +33,6 @@ const MessageList = ({ messages, user, formatTime }) => {
           ? msg.status
           : "sent";
 
-        // DEBUG MESSAGE STATUS
-        if (isOwnMessage) {
-          console.log("MESSAGE RENDER:", {
-            id: msg._id,
-            databaseStatus: msg.status,
-            displayedStatus: status,
-          });
-        }
-
         return (
           <div
             key={msg._id || index}
@@ -59,9 +50,18 @@ const MessageList = ({ messages, user, formatTime }) => {
                   {formatTime(msg.createdAt)}
                 </span>
 
-                {/* MESSAGE STATUS */}
                 {isOwnMessage && (
-                  <span className={`message-status ${status}`} title={status}>
+                  <span
+                    className={`message-status ${status}`}
+                    title={
+                      status === "read"
+                        ? "Read"
+                        : status === "delivered"
+                          ? "Delivered"
+                          : "Sent"
+                    }
+                    aria-label={`Message ${status}`}
+                  >
                     {status === "sent" ? "✓" : "✓✓"}
                   </span>
                 )}

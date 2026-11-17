@@ -121,6 +121,9 @@ export const Chat = ({ user }) => {
   const messageInputRef = useRef(null);
   const currentChatRef = useRef(currentChat);
 
+  // Tracks read requests waiting for server confirmation.
+  const readRequestsRef = useRef(new Set());
+
   currentChatRef.current = currentChat;
 
   const currentUserId = getUserId(user);
@@ -141,10 +144,16 @@ export const Chat = ({ user }) => {
   useEffect(() => {
     const onConnect = () => {
       setIsConnected(true);
+      console.log("Socket is connected");
     };
 
     const onDisconnect = () => {
       setIsConnected(false);
+
+      // Allow read requests to be retried after reconnecting.
+      readRequestsRef.current.clear();
+
+      console.log("Socket disconnected");
     };
 
     socket.on("connect", onConnect);
@@ -201,7 +210,6 @@ export const Chat = ({ user }) => {
       isRefreshing = true;
 
       try {
-        // STEP 1: Update current user's lastSeen
         const heartbeatResponse = await axios.post(
           `${API_URL}/presence/heartbeat`,
           {},
@@ -212,7 +220,6 @@ export const Chat = ({ user }) => {
 
         if (!isActive) return;
 
-        // STEP 2: Get all online users
         const presenceResponse = await axios.get(`${API_URL}/presence`, {
           headers,
         });
@@ -226,7 +233,6 @@ export const Chat = ({ user }) => {
           return;
         }
 
-        // STEP 3: Normalize MongoDB IDs
         const onlineIds = receivedIds
           .map((id) => getUserId(id))
           .filter(Boolean);
@@ -246,13 +252,10 @@ export const Chat = ({ user }) => {
       }
     };
 
-    // Run immediately
     refreshPresence();
 
-    // Refresh every 10 seconds
     const intervalId = setInterval(refreshPresence, 10000);
 
-    // Refresh when browser tab becomes active
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         refreshPresence();
@@ -260,7 +263,6 @@ export const Chat = ({ user }) => {
     };
 
     window.addEventListener("focus", refreshPresence);
-
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
@@ -269,7 +271,6 @@ export const Chat = ({ user }) => {
       clearInterval(intervalId);
 
       window.removeEventListener("focus", refreshPresence);
-
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [currentUserId]);
@@ -324,9 +325,9 @@ export const Chat = ({ user }) => {
         isFetching = false;
       }
     };
+
     fetchUsers();
 
-    // Automatically discover newly registered users
     const intervalId = setInterval(fetchUsers, 5000);
 
     return () => {
@@ -368,6 +369,11 @@ export const Chat = ({ user }) => {
       const messageId = updatedMessage._id || updatedMessage.messageId;
 
       if (!messageId) return;
+
+      // Server confirmed that this message has been read.
+      if (updatedMessage.status === "read") {
+        readRequestsRef.current.delete(String(messageId));
+      }
 
       setMessages((previousMessages) =>
         previousMessages.map((message) => {
@@ -506,6 +512,9 @@ export const Chat = ({ user }) => {
       });
     }
 
+    // Clear pending requests from the previous conversation.
+    readRequestsRef.current.clear();
+
     setCurrentChat(receiver);
     setMessages([]);
     setCurrentMessage("");
@@ -557,11 +566,11 @@ export const Chat = ({ user }) => {
   };
 
   // =================================
-  // MARK DELIVERED MESSAGES AS READ
+  // MARK INCOMING MESSAGES AS READ
   // =================================
 
   useEffect(() => {
-    if (!currentChat || !user) return;
+    if (!currentChat || !user || !isConnected) return;
 
     const markConversationAsRead = () => {
       if (document.visibilityState !== "visible" || !socket.connected) {
@@ -573,20 +582,37 @@ export const Chat = ({ user }) => {
           getUserId(msg.sender) === getUserId(currentChat) &&
           getUserId(msg.receiver) === currentUserId;
 
-        if (isReceivedMessage && msg.status === "delivered") {
-          markAsRead(msg._id);
+        const messageId = String(msg._id || "");
+
+        const isAlreadyRead = msg.status === "read";
+
+        const isRequestPending = readRequestsRef.current.has(messageId);
+
+        if (
+          isReceivedMessage &&
+          messageId &&
+          !isAlreadyRead &&
+          !isRequestPending
+        ) {
+          readRequestsRef.current.add(messageId);
+
+          console.log("MARKING MESSAGE AS READ:", messageId);
+
+          markAsRead(messageId);
         }
       });
     };
 
+    // Run when opening a conversation or when messages change.
     markConversationAsRead();
 
+    // Run again when the user returns to this browser tab.
     document.addEventListener("visibilitychange", markConversationAsRead);
 
     return () => {
       document.removeEventListener("visibilitychange", markConversationAsRead);
     };
-  }, [messages, currentChat, user, currentUserId]);
+  }, [messages, currentChat, user, currentUserId, isConnected]);
 
   // =================================
   // HANDLE TYPING
@@ -667,7 +693,6 @@ export const Chat = ({ user }) => {
     const senderId = currentUserId;
     const receiverId = getUserId(currentChat);
 
-    // DEBUG LOGS - ADD HERE
     console.log("Current logged-in user:", user);
     console.log("Current sender ID:", senderId);
     console.log("Selected receiver:", currentChat);
@@ -726,6 +751,8 @@ export const Chat = ({ user }) => {
     }
 
     fetchRequestRef.current++;
+
+    readRequestsRef.current.clear();
 
     setCurrentChat(null);
     setMessages([]);
