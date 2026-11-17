@@ -7,13 +7,26 @@ const Login = ({ setUser }) => {
 
   const handleLogin = async () => {
     try {
-      const { data } = await axios.post("https://chat-app-backend-red-sigma.vercel.app/auth/login", {
-        username,
-        password,
-      });
+      const { data } = await axios.post(
+        "https://chat-app-backend-red-sigma.vercel.app/auth/login",
+        {
+          username,
+          password,
+        },
+      );
 
       console.log("Logged-in user:", data.user);
 
+      // SAVE JWT TOKEN
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        console.log("JWT token saved successfully");
+      } else {
+        console.error("JWT token is missing from login response");
+        return;
+      }
+
+      // SAVE LOGGED-IN USER
       setUser(data.user);
     } catch (error) {
       console.error(error.response?.data?.message || "Error logging in");
@@ -24,7 +37,9 @@ const Login = ({ setUser }) => {
     <div className="card py-5 text-center">
       <div className="card-body px-5">
         <h2>Login</h2>
+
         <p>Login with your credentials to continue.</p>
+
         <input
           type="text"
           placeholder="Username"
@@ -32,6 +47,7 @@ const Login = ({ setUser }) => {
           className="form-control form-control-lg mt-3"
           onChange={(e) => setUsername(e.target.value)}
         />
+
         <input
           type="password"
           placeholder="Password"

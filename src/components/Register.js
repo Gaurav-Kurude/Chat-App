@@ -26,9 +26,17 @@ const Register = ({ setCurrentPage }) => {
         },
       );
 
-      console.log("Registration successful:", response.data);
+      if (response.data?.alreadyExists) {
+        toast.error(
+          response.data.message || "User already exist. Please login.",
+          {
+            position: "top-right",
+            autoClose: 3000,
+          },
+        );
+        return;
+      }
 
-      // Success toast
       toast.success("Registration successful!", {
         position: "top-right",
         autoClose: 3000,
@@ -43,11 +51,6 @@ const Register = ({ setCurrentPage }) => {
         setCurrentPage("login");
       }
     } catch (error) {
-      console.error(
-        "Registration error:",
-        error.response?.data || error.message,
-      );
-
       const errorMessage =
         error.response?.data?.message ||
         "Registration failed. Please try again.";

@@ -11,7 +11,19 @@ import "./chat.css";
 
 const socket = io("https://chat-app-backend-red-sigma.vercel.app", {
   transports: ["websocket", "polling"],
-  autoConnect: true,
+  autoConnect: false,
+});
+
+socket.on("connect", () => {
+  console.log("Socket connected successfully:", socket.id);
+});
+
+socket.on("connect_error", (error) => {
+  console.error("Socket connection error:", error.message);
+});
+
+socket.on("disconnect", (reason) => {
+  console.log("Socket disconnected:", reason);
 });
 
 const API_URL = "https://chat-app-backend-red-sigma.vercel.app";
@@ -28,7 +40,6 @@ const statusOrder = {
 
 // =================================
 // GET USER ID
-// MOVED OUTSIDE COMPONENT
 // =================================
 
 const getUserId = (value) => {
@@ -534,26 +545,43 @@ export const Chat = ({ user }) => {
   };
 
   // =================================
-  // SEND MESSAGE
+  // SEND MESSAGE - UPDATED
   // =================================
 
-  const sendMessage = () => {
-    if (!currentMessage.trim() || !currentChat || !socket.connected) {
+  const sendMessage = (e) => {
+    // Allow calling with or without an event
+    e?.preventDefault();
+
+    const trimmedMessage = currentMessage.trim();
+
+    if (!trimmedMessage) return;
+
+    if (!currentChat) {
+      console.log("Please select a conversation first");
       return;
     }
 
+    if (!socket.connected) {
+      console.log("Socket is not connected");
+      return;
+    }
+
+    // GET SENDER AND RECEIVER IDs
     const senderId = getUserId(user);
     const receiverId = getUserId(currentChat);
 
     if (!senderId || !receiverId) {
-      console.error("Sender or receiver ID missing");
+      console.error("Sender or receiver ID is missing:", {
+        senderId,
+        receiverId,
+      });
       return;
     }
 
     const messageData = {
       sender: senderId,
       receiver: receiverId,
-      message: currentMessage.trim(),
+      message: trimmedMessage,
     };
 
     console.log("Sending message:", messageData);
@@ -561,14 +589,20 @@ export const Chat = ({ user }) => {
     socket.emit("send_message", messageData, (response) => {
       console.log("Server response:", response);
 
-      if (!response?.success) {
-        console.error("Message sending failed:", response?.message);
-        return;
-      }
+      if (response?.success) {
+        setCurrentMessage("");
+        setShowEmojiPicker(false);
 
-      setCurrentMessage("");
-      setShowEmojiPicker(false);
-      messageInputRef.current?.focus();
+        clearTimeout(typingTimeoutRef.current);
+
+        socket.emit("stopTyping", {
+          roomId: getRoomId(currentChat),
+        });
+
+        messageInputRef.current?.focus();
+      } else {
+        console.error("Message sending failed:", response);
+      }
     });
   };
 
@@ -767,8 +801,9 @@ export const Chat = ({ user }) => {
                 value={currentMessage}
                 onChange={handleTyping}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    sendMessage();
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage(e);
                   }
                 }}
               />
