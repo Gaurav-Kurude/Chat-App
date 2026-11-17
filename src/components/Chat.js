@@ -660,6 +660,12 @@ export const Chat = ({ user }) => {
     const senderId = currentUserId;
     const receiverId = getUserId(currentChat);
 
+    // DEBUG LOGS - ADD HERE
+    console.log("Current logged-in user:", user);
+    console.log("Current sender ID:", senderId);
+    console.log("Selected receiver:", currentChat);
+    console.log("Receiver ID:", receiverId);
+
     if (!senderId || !receiverId) {
       console.error("Sender or receiver ID is missing");
       return;
