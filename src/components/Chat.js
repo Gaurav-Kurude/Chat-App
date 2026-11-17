@@ -61,6 +61,9 @@ export const Chat = ({ user }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loadingMessages, setLoadingMessages] = useState(false);
 
+  // FIX: SOCKET CONNECTION STATE (so the UI re-renders when it changes)
+  const [isConnected, setIsConnected] = useState(socket.connected);
+
   // EMOJI PICKER STATE
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
@@ -149,15 +152,27 @@ export const Chat = ({ user }) => {
   };
 
   // =================================
-  // SOCKET CONNECTION
+  // SOCKET CONNECTION (FIXED)
+  // Tracks connection in React state so the send button updates
   // =================================
 
   useEffect(() => {
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+
     if (!socket.connected) {
       socket.connect();
     }
 
+    // Sync in case the socket connected before listeners were attached
+    setIsConnected(socket.connected);
+
     return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
       clearTimeout(typingTimeoutRef.current);
       socket.disconnect();
     };
@@ -545,7 +560,7 @@ export const Chat = ({ user }) => {
   };
 
   // =================================
-  // SEND MESSAGE - UPDATED
+  // SEND MESSAGE - FIXED
   // =================================
 
   const sendMessage = (e) => {
@@ -590,6 +605,20 @@ export const Chat = ({ user }) => {
       console.log("Server response:", response);
 
       if (response?.success) {
+        // FIX: show the sent message even if the server doesn't
+        // echo it back through "receive_message" to the sender
+        if (response.message && response.message._id) {
+          setMessages((previousMessages) => {
+            const exists = previousMessages.some(
+              (msg) => String(msg._id) === String(response.message._id),
+            );
+
+            if (exists) return previousMessages;
+
+            return sortMessages([...previousMessages, response.message]);
+          });
+        }
+
         setCurrentMessage("");
         setShowEmojiPicker(false);
 
@@ -652,7 +681,9 @@ export const Chat = ({ user }) => {
 
             <h3>My Chat</h3>
 
-            <span className="profile-status">● Online</span>
+            <span className="profile-status">
+              {isConnected ? "● Online" : "● Connecting..."}
+            </span>
           </div>
         </div>
 
@@ -808,13 +839,13 @@ export const Chat = ({ user }) => {
                 }}
               />
 
-              {/* SEND BUTTON */}
+              {/* SEND BUTTON (FIXED: uses isConnected state) */}
 
               <button
                 type="button"
                 onClick={sendMessage}
-                disabled={!currentMessage.trim() || !socket.connected}
-                title="Send message"
+                disabled={!currentMessage.trim() || !isConnected}
+                title={isConnected ? "Send message" : "Connecting..."}
               >
                 ➤
               </button>
