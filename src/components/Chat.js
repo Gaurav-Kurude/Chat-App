@@ -409,6 +409,13 @@ export const Chat = ({ user }) => {
     if (!user) return;
 
     const handleReceiveMessage = (data) => {
+      console.log("========== MESSAGE RECEIVED ==========");
+      console.log("Received message:", data);
+      console.log("Sender:", getUserId(data.sender));
+      console.log("Receiver:", getUserId(data.receiver));
+      console.log("Current user:", currentUserId);
+      console.log("======================================");
+
       const senderId = getUserId(data.sender);
       const receiverId = getUserId(data.receiver);
 
