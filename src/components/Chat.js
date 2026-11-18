@@ -864,6 +864,13 @@ export const Chat = ({ user, onLogout }) => {
             <p className="no-users">No users found</p>
           )}
         </div>
+
+        {/* Logout Button */}
+        <div className="sidebar-logout">
+          <button className="logout-btn" onClick={onLogout}>
+            Logout
+          </button>
+        </div>
       </aside>
 
       {/* CHAT WINDOW */}
@@ -893,10 +900,6 @@ export const Chat = ({ user, onLogout }) => {
                       : "offline"}
                 </p>
               </div>
-
-              <button className="logout-btn" onClick={onLogout}>
-                Logout
-              </button>
 
               <div className="chat-header-actions">
                 <span title="Search">⌕</span>
