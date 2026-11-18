@@ -794,7 +794,7 @@ export const Chat = ({ user, onLogout }) => {
   // =================================
 
   return (
-    <div className="chat-container">
+    <div className={`chat-container ${currentChat ? "mobile-chat-open" : ""}`}>
       {/* SIDEBAR */}
 
       <aside className="chat-sidebar">
@@ -887,6 +887,17 @@ export const Chat = ({ user, onLogout }) => {
             {/* CHAT HEADER */}
 
             <div className="chat-header">
+              {/* MOBILE BACK BUTTON */}
+              <button
+                type="button"
+                className="mobile-back-btn"
+                onClick={closeChat}
+                title="Back to chats"
+                aria-label="Back to chats"
+              >
+                ←
+              </button>
+
               <div className="avatar user-avatar">
                 {getInitials(currentChat.username)}
               </div>
