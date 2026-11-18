@@ -112,6 +112,8 @@ export const Chat = ({ user, onLogout }) => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMessageSearch, setShowMessageSearch] = useState(false);
+  const [messageSearchTerm, setMessageSearchTerm] = useState("");
 
   // ONLINE USERS
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -518,6 +520,8 @@ export const Chat = ({ user, onLogout }) => {
     setCurrentChat(receiver);
     setMessages([]);
     setCurrentMessage("");
+    setMessageSearchTerm("");
+    setShowMessageSearch(false);
     setTypingUser("");
     setShowEmojiPicker(false);
     setLoadingMessages(true);
@@ -757,6 +761,8 @@ export const Chat = ({ user, onLogout }) => {
     setCurrentChat(null);
     setMessages([]);
     setCurrentMessage("");
+    setMessageSearchTerm("");
+    setShowMessageSearch(false);
     setTypingUser("");
     setShowEmojiPicker(false);
     setLoadingMessages(false);
@@ -902,14 +908,40 @@ export const Chat = ({ user, onLogout }) => {
               </div>
 
               <div className="chat-header-actions">
-                <span title="Search">⌕</span>
-                <span title="More options">⋮</span>
+                <button
+                  className="header-search-btn"
+                  title="Search messages"
+                  onClick={() => setShowMessageSearch((prev) => !prev)}
+                >
+                  ⌕
+                </button>
 
                 <button onClick={closeChat} title="Close chat">
                   ✕
                 </button>
               </div>
             </div>
+
+            {/* ADD SEARCH INPUT HERE */}
+            {showMessageSearch && (
+              <div className="message-search-container">
+                <input
+                  type="text"
+                  placeholder="Search messages..."
+                  value={messageSearchTerm}
+                  onChange={(e) => setMessageSearchTerm(e.target.value)}
+                />
+
+                <button
+                  onClick={() => {
+                    setMessageSearchTerm("");
+                    setShowMessageSearch(false);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* MESSAGE LIST */}
 
@@ -921,6 +953,7 @@ export const Chat = ({ user, onLogout }) => {
                   messages={messages}
                   user={user}
                   formatTime={formatTime}
+                  searchTerm={messageSearchTerm}
                 />
               )}
             </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-const MessageList = ({ messages, user, formatTime }) => {
+const MessageList = ({ messages, user, formatTime, searchTerm = "" }) => {
   const messagesEndRef = useRef(null);
 
   // GET USER ID
@@ -14,62 +14,75 @@ const MessageList = ({ messages, user, formatTime }) => {
     return String(value);
   };
 
-  // AUTO SCROLL TO LATEST MESSAGE
+  // SEARCH MESSAGES
+  const filteredMessages = messages.filter((msg) =>
+    String(msg.message || "")
+      .toLowerCase()
+      .includes(searchTerm.trim().toLowerCase()),
+  );
+
+  // AUTO SCROLL
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [messages]);
+  }, [messages, searchTerm]);
 
   const currentUserId = getId(user);
 
   return (
     <div className="messages-container">
-      {messages.map((msg, index) => {
-        const senderId = getId(msg.sender);
-        const isOwnMessage = senderId === currentUserId;
+      {filteredMessages.length === 0 ? (
+        <p className="no-messages-found">
+          {searchTerm.trim() ? "No messages found" : "No messages yet"}
+        </p>
+      ) : (
+        filteredMessages.map((msg, index) => {
+          const senderId = getId(msg.sender);
+          const isOwnMessage = senderId === currentUserId;
 
-        const status = ["sent", "delivered", "read"].includes(msg.status)
-          ? msg.status
-          : "sent";
+          const status = ["sent", "delivered", "read"].includes(msg.status)
+            ? msg.status
+            : "sent";
 
-        return (
-          <div
-            key={msg._id || index}
-            className={`message-row ${isOwnMessage ? "sent" : "received"}`}
-          >
+          return (
             <div
-              className={`message-bubble ${
-                isOwnMessage ? "sent-bubble" : "received-bubble"
-              }`}
+              key={msg._id || index}
+              className={`message-row ${isOwnMessage ? "sent" : "received"}`}
             >
-              <p className="message-text">{msg.message}</p>
+              <div
+                className={`message-bubble ${
+                  isOwnMessage ? "sent-bubble" : "received-bubble"
+                }`}
+              >
+                <p className="message-text">{msg.message}</p>
 
-              <div className="message-meta">
-                <span className="message-time">
-                  {formatTime(msg.createdAt)}
-                </span>
-
-                {isOwnMessage && (
-                  <span
-                    className={`message-status ${status}`}
-                    title={
-                      status === "read"
-                        ? "Read"
-                        : status === "delivered"
-                          ? "Delivered"
-                          : "Sent"
-                    }
-                    aria-label={`Message ${status}`}
-                  >
-                    {status === "sent" ? "✓" : "✓✓"}
+                <div className="message-meta">
+                  <span className="message-time">
+                    {formatTime(msg.createdAt)}
                   </span>
-                )}
+
+                  {isOwnMessage && (
+                    <span
+                      className={`message-status ${status}`}
+                      title={
+                        status === "read"
+                          ? "Read"
+                          : status === "delivered"
+                            ? "Delivered"
+                            : "Sent"
+                      }
+                      aria-label={`Message ${status}`}
+                    >
+                      {status === "sent" ? "✓" : "✓✓"}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      )}
 
       <div ref={messagesEndRef} />
     </div>

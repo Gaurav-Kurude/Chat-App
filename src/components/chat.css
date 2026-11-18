@@ -89,7 +89,7 @@
 }
 
 /* =================================
-   SEARCH
+   SIDEBAR SEARCH
 ================================= */
 
 .search-container {
@@ -188,8 +188,6 @@
   color: #8696a0;
 }
 
-/* STATUS DOT */
-
 .status-dot {
   display: inline-block;
   width: 8px;
@@ -263,8 +261,6 @@
   font-size: 12px;
 }
 
-/* HEADER ONLINE STATUS */
-
 .chat-user-info p.status-online {
   color: #25d366;
 }
@@ -273,13 +269,82 @@
   color: #8696a0;
 }
 
+/* HEADER ACTIONS */
+
 .chat-header-actions {
   display: flex;
   align-items: center;
-  gap: 25px;
-  font-size: 23px;
+  gap: 15px;
+  flex-shrink: 0;
+}
+
+/* HEADER SEARCH BUTTON */
+
+.header-search-btn,
+.chat-header-actions button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
   color: #54656f;
+  font-size: 24px;
   cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.header-search-btn:hover,
+.chat-header-actions button:hover {
+  background: #e2e6e9;
+}
+
+/* =================================
+   CHAT MESSAGE SEARCH
+================================= */
+
+.message-search-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 15px;
+  flex-shrink: 0;
+  background: #f0f2f5;
+  border-bottom: 1px solid #ddd;
+}
+
+.message-search-container input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+  font-size: 14px;
+}
+
+.message-search-container input:focus {
+  border-color: #075e54;
+  box-shadow: 0 0 0 1px #075e54;
+}
+
+.message-search-container button {
+  width: 35px;
+  height: 35px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #54656f;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.message-search-container button:hover {
+  background: #e2e6e9;
 }
 
 /* =================================
@@ -350,8 +415,6 @@
   border-bottom-left-radius: 3px;
 }
 
-/* MESSAGE TEXT */
-
 .message-text {
   margin: 0;
   font-size: 14px;
@@ -399,19 +462,13 @@
   user-select: none;
 }
 
-/* ONE GREY TICK - SENT */
-
 .message-status.sent {
   color: #8696a0;
 }
 
-/* TWO GREY TICKS - DELIVERED */
-
 .message-status.delivered {
   color: #8696a0;
 }
-
-/* TWO BLUE TICKS - READ */
 
 .message-status.read {
   color: #34b7f1;
@@ -682,7 +739,7 @@
   }
 
   .chat-header-actions {
-    gap: 12px;
+    gap: 8px;
   }
 
   .message-bubble {
@@ -748,7 +805,24 @@
   }
 
   .chat-header-actions {
-    display: none;
+    display: flex;
+    gap: 5px;
+  }
+
+  .header-search-btn,
+  .chat-header-actions button {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  .message-search-container {
+    padding: 8px;
+  }
+
+  .message-search-container input {
+    padding: 9px;
+    font-size: 13px;
   }
 
   .message-bubble {
@@ -785,23 +859,10 @@
   }
 }
 
-.logout-btn {
-  background: #e53935;
-  color: white;
-  border: none;
-  padding: 9px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  transition: background 0.2s ease;
-}
+/* =================================
+   LOGOUT BUTTON
+================================= */
 
-.logout-btn:hover {
-  background: #c62828;
-}
-
-/* Logout at bottom of sidebar */
 .sidebar-logout {
   width: 100%;
   padding: 15px;
@@ -826,4 +887,13 @@
 
 .logout-btn:hover {
   background: #bb2d3b;
+}
+
+.no-messages-found {
+  width: 100%;
+  margin: auto;
+  padding: 20px;
+  text-align: center;
+  color: #667781;
+  font-size: 14px;
 }
